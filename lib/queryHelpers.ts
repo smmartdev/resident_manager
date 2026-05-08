@@ -1,6 +1,4 @@
-import { DataSource } from 'typeorm';
-
-export async function findResidents(ds: DataSource, options: {
+export async function findResidents(ds: any, options: {
   where?: string;
   params?: any[];
   limit?: number;
@@ -9,8 +7,8 @@ export async function findResidents(ds: DataSource, options: {
 } = {}) {
   const where = options.where ? `WHERE ${options.where}` : '';
   const order = options.orderBy ? `ORDER BY ${options.orderBy}` : 'ORDER BY r.createdAt DESC';
-  const limit = options.limit ? `LIMIT ${options.limit}` : '';
-  const offset = options.offset ? `OFFSET ${options.offset}` : '';
+  const limit = options.limit !== undefined ? `LIMIT ${options.limit}` : '';
+  const offset = options.offset !== undefined ? `OFFSET ${options.offset}` : '';
 
   const sql = `
     SELECT r.*,
@@ -22,17 +20,17 @@ export async function findResidents(ds: DataSource, options: {
     ${where} ${order} ${limit} ${offset}
   `;
 
-  const rows = await ds.query(sql, options.params ?? []);
+  const rows = await ds.query(sql, options.params ?? []) as any[];
   return rows.map(mapRow);
 }
 
-export async function countResidents(ds: DataSource, options: {
+export async function countResidents(ds: any, options: {
   where?: string;
   params?: any[];
 } = {}) {
   const where = options.where ? `WHERE ${options.where}` : '';
   const sql = `SELECT COUNT(*) as cnt FROM residents r ${where}`;
-  const result = await ds.query(sql, options.params ?? []);
+  const result = await ds.query(sql, options.params ?? []) as any[];
   return parseInt(result[0].cnt);
 }
 

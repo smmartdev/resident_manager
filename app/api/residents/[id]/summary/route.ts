@@ -3,32 +3,57 @@ import { getDataSource } from '@/lib/db';
 import { successResponse, errorResponse } from '@/lib/apiHelpers';
 import { mapRow } from '@/lib/queryHelpers';
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
     const ds = await getDataSource();
 
-    const rows = await ds.query(
-      `SELECT r.*, h.id as h_id, h.firstName as h_firstName, h.fatherName as h_fatherName,
-        h.familyName as h_familyName, h.nationalId as h_nationalId,
-        h.tentNumber as h_tentNumber, h.phoneNumber1 as h_phoneNumber1
+    const rows = (await ds.query(
+      `SELECT r.*, h.id as h_id, h.firstName as h_firstName,
+              h.fatherName as h_fatherName,
+              h.familyName as h_familyName,
+              h.nationalId as h_nationalId,
+              h.tentNumber as h_tentNumber,
+              h.phoneNumber1 as h_phoneNumber1
        FROM residents r
        LEFT JOIN residents h ON h.id = r.headOfHouseholdId
-       WHERE r.id = ?`, [id]
-    );
-    if (!rows.length) return errorResponse('المقيم غير موجود', 404);
+       WHERE r.id = ?`,
+      [id]
+    )) as any[];
+
+    if (rows.length === 0) {
+      return errorResponse('المقيم غير موجود', 404);
+    }
 
     const resident = mapRow(rows[0]);
     const headId = resident.headOfHouseholdId ?? resident.id;
 
-    const [members, aidRecords] = await Promise.all([
-      ds.query('SELECT * FROM residents WHERE headOfHouseholdId = ?', [id]),
-      ds.query('SELECT * FROM aid_records WHERE headOfHouseholdId = ? ORDER BY aidDate DESC', [headId]),
+    const [membersRaw, aidRecordsRaw] = await Promise.all([
+      ds.query(
+        'SELECT * FROM residents WHERE headOfHouseholdId = ?',
+        [id]
+      ),
+
+      ds.query(
+        `SELECT * FROM aid_records
+         WHERE headOfHouseholdId = ?
+         ORDER BY aidDate DESC`,
+        [headId]
+      ),
     ]);
 
+    const members = membersRaw as any[];
+    const aidRecords = aidRecordsRaw as any[];
+
     const lastAidByType: Record<string, any> = {};
+
     for (const record of aidRecords) {
-      if (!lastAidByType[record.aidType]) lastAidByType[record.aidType] = record;
+      if (!lastAidByType[record.aidType]) {
+        lastAidByType[record.aidType] = record;
+      }
     }
 
     return successResponse({
@@ -39,6 +64,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       familySize: members.length + 1,
     });
   } catch (error) {
-    return errorResponse('فشل في جلب ملخص المقيم', 500, String(error));
+    return errorResponse(
+      'فشل في جلب ملخص المقيم',
+      500,
+      String(error)
+    );
   }
 }

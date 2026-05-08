@@ -253,9 +253,11 @@ zod
 ```env
 DB_HOST=localhost
 DB_PORT=3306
-DB_USERNAME=root
-DB_PASSWORD=your_password
-DB_DATABASE=resident_manager_db
+DB_USER=root
+DB_PASSWORD=yourpassword
+DB_NAME=resident_manager_db
+
+
 
 JWT_SECRET=your_secret_key
 
