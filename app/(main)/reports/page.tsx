@@ -7,6 +7,7 @@ import PageHeader from '../../../components/ui/PageHeader';
 import Badge from '../../../components/ui/Badge';
 import ResidentBadges from '../../../components/ui/ResidentBadges';
 import { GENDER_LABELS, RELATION_LABELS, AID_TYPE_LABELS, AID_TYPE_COLORS } from '../../../lib/constants';
+import * as XLSX from 'xlsx';
 
 type ReportType =
   | 'elderly' | 'chronic' | 'pregnant'
@@ -30,6 +31,43 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState(30);
   const [total, setTotal] = useState(0);
+  function exportToExcel() {
+    if (!data.length) return;
+
+    const rows = data.map((r: any) => {
+      if (activeReport === 'household-aid') {
+        return {
+          'رب الأسرة': `${r.head?.firstName} ${r.head?.familyName}`,
+          'رقم الهوية': r.head?.nationalId,
+          'عدد المساعدات': r.records?.length,
+        };
+      }
+      if (activeReport === 'no-aid') {
+        return {
+          'رقم الهوية': r.nationalId,
+          'الاسم': `${r.firstName} ${r.fatherName} ${r.familyName}`,
+          'الهاتف': r.phoneNumber1,
+          'الخيمة': r.tentNumber ?? '—',
+          'آخر مساعدة': r.lastAidDate ?? 'لم تُسجَّل',
+          'أيام بدون مساعدة': r.daysSinceLastAid ?? '—',
+        };
+      }
+      return {
+        'رقم الهوية': r.nationalId,
+        'الاسم الكامل': `${r.firstName} ${r.fatherName} ${r.grandfatherName} ${r.familyName}`,
+        'رقم الهاتف': r.phoneNumber1,
+        'العمر': r.age,
+        'الجنس': r.gender === 'male' ? 'ذكر' : 'أنثى',
+        'الخيمة': r.tentNumber ?? '—',
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    ws['!cols'] = Array(8).fill({ wch: 20 });
+    XLSX.utils.book_append_sheet(wb, ws, activeItem?.label ?? 'تقرير');
+    XLSX.writeFile(wb, `${activeItem?.label ?? 'تقرير'}.xlsx`);
+  }
 
   async function loadReport(key: ReportType, daysParam = days) {
     setActiveReport(key);
@@ -89,10 +127,25 @@ export default function ReportsPage() {
       {activeReport && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            {/* <h2 className="font-semibold text-slate-700">
+              {activeItem?.icon} {activeItem?.label}
+            </h2>
+            <span className="text-sm text-slate-500">الإجمالي: {total}</span> */}
             <h2 className="font-semibold text-slate-700">
               {activeItem?.icon} {activeItem?.label}
             </h2>
-            <span className="text-sm text-slate-500">الإجمالي: {total}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-500">الإجمالي: {total}</span>
+              {data.length > 0 && (
+                <button
+                  onClick={exportToExcel}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <span>📥</span>
+                  <span>Excel</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
