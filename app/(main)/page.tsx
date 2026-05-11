@@ -5,6 +5,7 @@ import Link from 'next/link';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PageHeader from '../../components/ui/PageHeader';
 import ReportModal from '../../components/ui/ReportModal';
+import FamiliesModal from '../../components/ui/FamiliesModal';
 
 type ModalKey =
   | 'elderly' | 'chronic' | 'pregnant' | 'breastfeeding'
@@ -60,7 +61,9 @@ function StatCard({ label, value, icon, color, onClick, clickable }: StatCardPro
     <div
       onClick={onClick}
       className={`rounded-xl border p-6 ${colorMap[color]} ${
-        clickable ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all' : ''
+        clickable
+          ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all'
+          : ''
       }`}
     >
       <div className="flex items-center justify-between">
@@ -83,9 +86,15 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Report modal
   const [activeModal, setActiveModal] = useState<ModalKey>(null);
   const [modalData, setModalData] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Families modal
+  const [familiesOpen, setFamiliesOpen] = useState(false);
+  const [familiesData, setFamiliesData] = useState<any[]>([]);
+  const [familiesLoading, setFamiliesLoading] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -137,9 +146,17 @@ export default function DashboardPage() {
     }
   }
 
-  function closeModal() {
-    setActiveModal(null);
-    setModalData([]);
+  async function openFamilies() {
+    setFamiliesOpen(true);
+    setFamiliesLoading(true);
+    setFamiliesData([]);
+    try {
+      const res = await fetch('/api/reports/families');
+      const json = await res.json();
+      setFamiliesData(json.data ?? []);
+    } finally {
+      setFamiliesLoading(false);
+    }
   }
 
   if (loading) return <LoadingSpinner />;
@@ -151,12 +168,19 @@ export default function DashboardPage() {
         title={activeModal ? REPORT_TITLES[activeModal] : ''}
         data={modalData}
         loading={modalLoading}
-        onClose={closeModal}
+        onClose={() => { setActiveModal(null); setModalData([]); }}
+      />
+
+      <FamiliesModal
+        open={familiesOpen}
+        data={familiesData}
+        loading={familiesLoading}
+        onClose={() => { setFamiliesOpen(false); setFamiliesData([]); }}
       />
 
       <PageHeader title="لوحة التحكم" subtitle="نظرة عامة على أوضاع المخيم" />
 
-      {/* Non-clickable summary cards */}
+      {/* Summary row */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <StatCard
           label="إجمالي المقيمين"
@@ -169,67 +193,27 @@ export default function DashboardPage() {
           value={stats.totalFamilies}
           icon="🏠"
           color="green"
+          clickable
+          onClick={openFamilies}
         />
       </div>
 
       {/* Clickable report cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          label="كبار السن (+60)"
-          value={stats.elderly}
-          icon="🧓"
-          color="purple"
-          clickable
-          onClick={() => openModal('elderly')}
-        />
-        <StatCard
-          label="أمراض مزمنة"
-          value={stats.chronic}
-          icon="🏥"
-          color="red"
-          clickable
-          onClick={() => openModal('chronic')}
-        />
-        <StatCard
-          label="حوامل"
-          value={stats.pregnant}
-          icon="🤰"
-          color="orange"
-          clickable
-          onClick={() => openModal('pregnant')}
-        />
-        <StatCard
-          label="مرضعات"
-          value={stats.breastfeeding}
-          icon="👶"
-          color="green"
-          clickable
-          onClick={() => openModal('breastfeeding')}
-        />
-        <StatCard
-          label="أطفال دون سنتين"
-          value={stats.childrenU2}
-          icon="🍼"
-          color="blue"
-          clickable
-          onClick={() => openModal('childrenU2')}
-        />
-        <StatCard
-          label="أطفال دون 5 سنوات"
-          value={stats.childrenU5}
-          icon="🧒"
-          color="blue"
-          clickable
-          onClick={() => openModal('childrenU5')}
-        />
-        <StatCard
-          label="أسر بدون مساعدة (30 يوم)"
-          value={stats.noAid}
-          icon="⚠️"
-          color="orange"
-          clickable
-          onClick={() => openModal('noAid')}
-        />
+        <StatCard label="كبار السن (+60)" value={stats.elderly} icon="🧓" color="purple"
+          clickable onClick={() => openModal('elderly')} />
+        <StatCard label="أمراض مزمنة" value={stats.chronic} icon="🏥" color="red"
+          clickable onClick={() => openModal('chronic')} />
+        <StatCard label="حوامل" value={stats.pregnant} icon="🤰" color="orange"
+          clickable onClick={() => openModal('pregnant')} />
+        <StatCard label="مرضعات" value={stats.breastfeeding} icon="👶" color="green"
+          clickable onClick={() => openModal('breastfeeding')} />
+        <StatCard label="أطفال دون سنتين" value={stats.childrenU2} icon="🍼" color="blue"
+          clickable onClick={() => openModal('childrenU2')} />
+        <StatCard label="أطفال دون 5 سنوات" value={stats.childrenU5} icon="🧒" color="blue"
+          clickable onClick={() => openModal('childrenU5')} />
+        <StatCard label="أسر بدون مساعدة (30 يوم)" value={stats.noAid} icon="⚠️" color="orange"
+          clickable onClick={() => openModal('noAid')} />
       </div>
 
       {/* Quick actions */}
@@ -242,7 +226,6 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500">تسجيل مقيم أو أسرة جديدة</p>
           </div>
         </Link>
-
         <Link href="/aid/new"
           className="flex items-center gap-4 p-6 bg-white rounded-xl border border-slate-200 hover:border-green-300 hover:shadow-md transition-all group">
           <span className="text-3xl">🤝</span>
@@ -251,7 +234,6 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500">توزيع مساعدة على أسرة</p>
           </div>
         </Link>
-
         <Link href="/reports"
           className="flex items-center gap-4 p-6 bg-white rounded-xl border border-slate-200 hover:border-purple-300 hover:shadow-md transition-all group">
           <span className="text-3xl">📊</span>

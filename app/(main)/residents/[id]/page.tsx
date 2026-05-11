@@ -152,8 +152,8 @@ export default function ResidentDetailPage() {
 
           {data.familyMembers?.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="font-semibold text-slate-700 mb-3 pb-2 border-b">
-                أفراد الأسرة ({data.familyMembers.length})
+            <h2 className="font-semibold text-slate-700 mb-3 pb-2 border-b">
+                أفراد الأسرة ({data.familyMembers.length + 1} شامل رب الأسرة)
               </h2>
               <div className="space-y-2">
                 {data.familyMembers.map((m: any) => (
