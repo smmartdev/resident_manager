@@ -10,7 +10,7 @@ import ResidentsModal from '../../components/ui/ResidentsModal';
 
 type ModalKey =
   | 'elderly' | 'chronic' | 'pregnant' | 'breastfeeding'
-  | 'childrenU2' | 'childrenU5' | 'noAid' | 'disabled' | null;
+  | 'childrenU2' | 'childrenU5' | 'noAid' | 'disabled' | 'minors' | null;
 
 const REPORT_ENDPOINTS: Record<string, string> = {
   elderly: '/api/reports/elderly',
@@ -20,7 +20,8 @@ const REPORT_ENDPOINTS: Record<string, string> = {
   childrenU2: '/api/reports/children-under-2',
   childrenU5: '/api/reports/children-under-5',
   noAid: '/api/reports/no-aid?days=30',
-  disabled: '/api/reports/disabled',
+   disabled: '/api/reports/disabled',
+  minors: '/api/reports/minors',
 
 };
 
@@ -33,6 +34,7 @@ const REPORT_TITLES: Record<string, string> = {
   childrenU5: 'أطفال دون 5 سنوات',
   noAid: 'أسر بدون مساعدة (30 يوم)',
   disabled: 'ذوو الإعاقة',
+  minors: 'القاصرون (18 سنة وأقل)',
 
 };
 
@@ -106,7 +108,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [residents, heads, elderly, chronic, pregnant, breastfeeding, u2, u5, noAid, disabled] =
+        const [residents, heads, elderly, chronic, pregnant, breastfeeding, u2, u5, noAid, disabled, minors] =
           await Promise.all([
             fetch('/api/residents?pageSize=1').then(r => r.json()),
             fetch('/api/residents?pageSize=1&headOnly=true').then(r => r.json()),
@@ -118,6 +120,7 @@ export default function DashboardPage() {
             fetch('/api/reports/children-under-5').then(r => r.json()),
             fetch('/api/reports/no-aid?days=30').then(r => r.json()),
             fetch('/api/reports/disabled').then(r => r.json()),
+            fetch('/api/reports/minors').then(r => r.json()),
           ]);
 
         setStats({
@@ -131,6 +134,7 @@ export default function DashboardPage() {
           childrenU5: u5.total ?? 0,
           noAid: noAid.total ?? 0,
           disabled: disabled.total ?? 0,
+          minors: minors.total ?? 0,
         });
       } catch (e) {
         console.error(e);
@@ -248,6 +252,8 @@ export default function DashboardPage() {
           clickable onClick={() => openModal('noAid')} />
         <StatCard label="ذوو الإعاقة" value={stats.disabled} icon="♿" color="purple"
           clickable onClick={() => openModal('disabled')} />
+        <StatCard label="القاصرون (18 وأقل)" value={stats.minors} icon="🧑" color="blue"
+          clickable onClick={() => openModal('minors')} />
       </div>
 
       {/* Quick actions */}
