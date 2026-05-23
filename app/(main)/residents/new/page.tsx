@@ -46,6 +46,11 @@ const emptyHead = () => ({
   isBreastfeeding: false,
 });
 
+// Relations where fatherName/grandfatherName/familyName are auto-filled from head
+const CHILD_RELATIONS = ['son', 'daughter'];
+
+// Relations where phone numbers are shown (not auto-inherited silently)
+// For all relations we hide phone and inherit from head silently
 type ResidentType = 'head' | 'member';
 
 export default function NewResidentPage() {
@@ -57,10 +62,7 @@ export default function NewResidentPage() {
   const [heads, setHeads] = useState<any[]>([]);
   const [headsLoaded, setHeadsLoaded] = useState(false);
 
-  // Head form (single)
   const [headForm, setHeadForm] = useState(emptyHead());
-
-  // Members forms (multiple)
   const [members, setMembers] = useState([emptyMember()]);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, Record<string, string>>>({});
@@ -68,7 +70,6 @@ export default function NewResidentPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Load heads for member mode
   async function loadHeads() {
     if (headsLoaded) return;
     const res = await fetch('/api/residents?headOnly=true&pageSize=500&isActive=true');
@@ -90,28 +91,36 @@ export default function NewResidentPage() {
     setSelectedHeadId(id);
     const head = heads.find((h: any) => String(h.id) === id);
     if (head) {
-      // Pre-fill phone and family name for all members
-      setMembers(prev => prev.map(m => ({
-        ...m,
-        phoneNumber1: m.phoneNumber1 || head.phoneNumber1 || '',
-        phoneNumber2: m.phoneNumber2 || head.phoneNumber2 || '',
-        familyName: m.familyName || head.familyName || '',
-        fatherName: m.fatherName || '',
-      })));
+      // Re-apply auto-fill for existing members based on their current relation
+      setMembers(prev => prev.map(m => applyAutoFill(m, m.relationToHead, head)));
     }
   }
 
-  // Head form field setter
+  // Auto-fill logic based on relation and selected head
+  function applyAutoFill(member: any, relation: string, head: any) {
+    const updated = { ...member, relationToHead: relation };
+    if (CHILD_RELATIONS.includes(relation) && head) {
+      // Son/Daughter: fatherName = head.firstName, grandfatherName = head.fatherName, familyName = head.familyName
+      updated.fatherName = head.firstName;
+      updated.grandfatherName = head.fatherName;
+      updated.familyName = head.familyName;
+    }
+    return updated;
+  }
+
   function setHead(field: string, value: any) {
     setHeadForm(prev => ({ ...prev, [field]: value }));
     setFieldErrors(prev => ({ ...prev, head: { ...prev.head, [field]: '' } }));
   }
 
-  // Member form field setter
   function setMember(index: number, field: string, value: any) {
     setMembers(prev => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      if (field === 'relationToHead') {
+        next[index] = applyAutoFill(next[index], value, selectedHead);
+      } else {
+        next[index] = { ...next[index], [field]: value };
+      }
       return next;
     });
     setFieldErrors(prev => ({
@@ -121,13 +130,7 @@ export default function NewResidentPage() {
   }
 
   function addMember() {
-    const head = heads.find((h: any) => String(h.id) === selectedHeadId);
-    setMembers(prev => [...prev, {
-      ...emptyMember(),
-      phoneNumber1: head?.phoneNumber1 || '',
-      phoneNumber2: head?.phoneNumber2 || '',
-      familyName: head?.familyName || '',
-    }]);
+    setMembers(prev => [...prev, emptyMember()]);
   }
 
   function removeMember(index: number) {
@@ -166,12 +169,6 @@ export default function NewResidentPage() {
         const mErrs: Record<string, string> = {};
         const idErr = validateNationalId(m.nationalId);
         if (idErr) { mErrs.nationalId = idErr; valid = false; }
-        const p1Err = validatePhone(m.phoneNumber1);
-        if (p1Err) { mErrs.phoneNumber1 = p1Err; valid = false; }
-        if (m.phoneNumber2) {
-          const p2Err = validatePhone(m.phoneNumber2, false);
-          if (p2Err) { mErrs.phoneNumber2 = p2Err; valid = false; }
-        }
         if (!m.relationToHead) { mErrs.relationToHead = 'الصلة مطلوبة'; valid = false; }
         if (Object.keys(mErrs).length) errors[`member_${i}`] = mErrs;
       });
@@ -199,7 +196,6 @@ export default function NewResidentPage() {
 
     try {
       if (residentType === 'head') {
-        // Save head only
         const payload = {
           ...headForm,
           relationToHead: 'head',
@@ -220,7 +216,6 @@ export default function NewResidentPage() {
         setTimeout(() => router.push(`/residents/${json.id}`), 1200);
 
       } else {
-        // Save multiple members
         const results: { name: string; success: boolean; error?: string }[] = [];
 
         for (const m of members) {
@@ -228,7 +223,9 @@ export default function NewResidentPage() {
             ...m,
             headOfHouseholdId: parseInt(selectedHeadId),
             tentNumber: null,
-            phoneNumber2: m.phoneNumber2 || null,
+            // Always inherit phone from head silently
+            phoneNumber1: selectedHead?.phoneNumber1 || m.phoneNumber1 || '',
+            phoneNumber2: selectedHead?.phoneNumber2 || null,
             chronicDiseaseDescription: m.chronicDiseaseDescription || null,
             disabilityType: m.disabilityType || null,
           };
@@ -301,12 +298,10 @@ export default function NewResidentPage() {
 
         {/* HEAD form */}
         {residentType === 'head' && (
-          <PersonForm
-            title="بيانات رب الأسرة"
+          <HeadForm
             data={headForm}
-            onChange={(f, v) => setHead(f, v)}
+            onChange={setHead}
             errors={fieldErrors.head ?? {}}
-            showTent
           />
         )}
 
@@ -351,19 +346,17 @@ export default function NewResidentPage() {
             {selectedHeadId && (
               <>
                 {members.map((m, i) => (
-                  <div key={i} className="relative">
-                    <PersonForm
-                      title={`الفرد ${i + 1}`}
-                      data={m}
-                      onChange={(f, v) => setMember(i, f, v)}
-                      errors={fieldErrors[`member_${i}`] ?? {}}
-                      showRelation
-                      onRemove={members.length > 1 ? () => removeMember(i) : undefined}
-                    />
-                  </div>
+                  <MemberForm
+                    key={i}
+                    index={i}
+                    data={m}
+                    onChange={(f, v) => setMember(i, f, v)}
+                    errors={fieldErrors[`member_${i}`] ?? {}}
+                    onRemove={members.length > 1 ? () => removeMember(i) : undefined}
+                    selectedHead={selectedHead}
+                  />
                 ))}
 
-                {/* Add member button */}
                 <button
                   type="button"
                   onClick={addMember}
@@ -406,68 +399,41 @@ export default function NewResidentPage() {
   );
 }
 
-// ─── Reusable PersonForm ────────────────────────────────────────────────────
+// ─── Head Form ───────────────────────────────────────────────────────────────
 
-interface PersonFormProps {
-  title: string;
+function HeadForm({ data, onChange, errors }: {
   data: any;
-  onChange: (field: string, value: any) => void;
+  onChange: (f: string, v: any) => void;
   errors: Record<string, string>;
-  showTent?: boolean;
-  showRelation?: boolean;
-  onRemove?: () => void;
-}
-
-function PersonForm({ title, data, onChange, errors, showTent, showRelation, onRemove }: PersonFormProps) {
+}) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6">
-      <div className="flex items-center justify-between mb-4 pb-2 border-b">
-        <h2 className="text-base font-semibold text-slate-700">{title}</h2>
-        {onRemove && (
-          <button type="button" onClick={onRemove}
-            className="text-red-400 hover:text-red-600 text-sm px-3 py-1 rounded-lg hover:bg-red-50 transition-colors">
-            ✕ حذف
-          </button>
-        )}
-      </div>
-
+      <h2 className="text-base font-semibold text-slate-700 mb-4 pb-2 border-b">بيانات رب الأسرة</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
         <Field label="الاسم الأول" required>
-          <input required value={data.firstName} onChange={e => onChange('firstName', e.target.value)}
-            className="input" />
+          <input required value={data.firstName} onChange={e => onChange('firstName', e.target.value)} className="input" />
         </Field>
-
         <Field label="اسم الأب" required>
-          <input required value={data.fatherName} onChange={e => onChange('fatherName', e.target.value)}
-            className="input" />
+          <input required value={data.fatherName} onChange={e => onChange('fatherName', e.target.value)} className="input" />
         </Field>
-
         <Field label="اسم الجد" required>
-          <input required value={data.grandfatherName} onChange={e => onChange('grandfatherName', e.target.value)}
-            className="input" />
+          <input required value={data.grandfatherName} onChange={e => onChange('grandfatherName', e.target.value)} className="input" />
         </Field>
-
         <Field label="اسم العائلة" required>
-          <input required value={data.familyName} onChange={e => onChange('familyName', e.target.value)}
-            className="input" />
+          <input required value={data.familyName} onChange={e => onChange('familyName', e.target.value)} className="input" />
         </Field>
 
         <Field label="رقم الهوية" required hint="9 خانات" error={errors.nationalId}>
-          <input
-            required
-            value={data.nationalId}
+          <input required value={data.nationalId}
             onChange={e => onChange('nationalId', e.target.value.replace(/\D/g, '').slice(0, 9))}
-            maxLength={9}
-            inputMode="numeric"
-            className={`input font-mono ${errors.nationalId ? 'border-red-400 bg-red-50' : ''}`}
-          />
+            maxLength={9} inputMode="numeric"
+            className={`input font-mono ${errors.nationalId ? 'border-red-400 bg-red-50' : ''}`} />
           <span className="text-xs text-slate-400">{data.nationalId.length}/9</span>
         </Field>
 
         <Field label="تاريخ الميلاد" required>
-          <input required type="date" value={data.dateOfBirth} onChange={e => onChange('dateOfBirth', e.target.value)}
-            className="input" />
+          <input required type="date" value={data.dateOfBirth} onChange={e => onChange('dateOfBirth', e.target.value)} className="input" />
         </Field>
 
         <Field label="الجنس" required>
@@ -485,102 +451,221 @@ function PersonForm({ title, data, onChange, errors, showTent, showRelation, onR
         </Field>
 
         <Field label="هاتف 1" required hint="10 خانات" error={errors.phoneNumber1}>
-          <input
-            required
-            value={data.phoneNumber1}
+          <input required value={data.phoneNumber1}
             onChange={e => onChange('phoneNumber1', e.target.value.replace(/\D/g, '').slice(0, 10))}
-            maxLength={10}
-            inputMode="numeric"
-            className={`input font-mono ${errors.phoneNumber1 ? 'border-red-400 bg-red-50' : ''}`}
-          />
+            maxLength={10} inputMode="numeric"
+            className={`input font-mono ${errors.phoneNumber1 ? 'border-red-400 bg-red-50' : ''}`} />
           <span className="text-xs text-slate-400">{data.phoneNumber1.length}/10</span>
         </Field>
 
         <Field label="هاتف 2" hint="10 خانات" error={errors.phoneNumber2}>
-          <input
-            value={data.phoneNumber2 ?? ''}
+          <input value={data.phoneNumber2 ?? ''}
             onChange={e => onChange('phoneNumber2', e.target.value.replace(/\D/g, '').slice(0, 10))}
-            maxLength={10}
-            inputMode="numeric"
-            className={`input font-mono ${errors.phoneNumber2 ? 'border-red-400 bg-red-50' : ''}`}
-          />
+            maxLength={10} inputMode="numeric"
+            className={`input font-mono ${errors.phoneNumber2 ? 'border-red-400 bg-red-50' : ''}`} />
           {data.phoneNumber2 && <span className="text-xs text-slate-400">{data.phoneNumber2.length}/10</span>}
         </Field>
 
-        {showTent && (
-          <Field label="رقم الخيمة">
-            <input value={data.tentNumber ?? ''} onChange={e => onChange('tentNumber', e.target.value)}
-              placeholder="مثال: A-101" className="input" />
-          </Field>
-        )}
+        <Field label="رقم الخيمة">
+          <input value={data.tentNumber ?? ''} onChange={e => onChange('tentNumber', e.target.value)}
+            placeholder="مثال: A-101" className="input" />
+        </Field>
+      </div>
 
-        {showRelation && (
-          <Field label="الصلة برب الأسرة" required error={errors.relationToHead}>
-            <select
-              required
-              value={data.relationToHead}
-              onChange={e => onChange('relationToHead', e.target.value)}
-              className={`input ${errors.relationToHead ? 'border-red-400 bg-red-50' : ''}`}
-            >
-              <option value="">اختر الصلة</option>
-              {Object.entries(RELATION_LABELS)
-                .filter(([k]) => k !== 'head')
-                .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </Field>
+      <HealthSection data={data} onChange={onChange} />
+    </div>
+  );
+}
+
+// ─── Member Form ─────────────────────────────────────────────────────────────
+
+function MemberForm({ index, data, onChange, errors, onRemove, selectedHead }: {
+  index: number;
+  data: any;
+  onChange: (f: string, v: any) => void;
+  errors: Record<string, string>;
+  onRemove?: () => void;
+  selectedHead?: any;
+}) {
+  const isChild = CHILD_RELATIONS.includes(data.relationToHead);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="flex items-center justify-between mb-4 pb-2 border-b">
+        <h2 className="text-base font-semibold text-slate-700">الفرد {index + 1}</h2>
+        {onRemove && (
+          <button type="button" onClick={onRemove}
+            className="text-red-400 hover:text-red-600 text-sm px-3 py-1 rounded-lg hover:bg-red-50 transition-colors">
+            ✕ حذف
+          </button>
         )}
       </div>
 
-      {/* Health */}
-      <div className="mt-4 pt-4 border-t">
-        <p className="text-sm font-medium text-slate-600 mb-3">الحالة الصحية</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Relation first */}
+      <div className="mb-4">
+        <Field label="الصلة برب الأسرة" required error={errors.relationToHead}>
+          <select
+            required
+            value={data.relationToHead}
+            onChange={e => onChange('relationToHead', e.target.value)}
+            className={`input ${errors.relationToHead ? 'border-red-400 bg-red-50' : ''}`}
+          >
+            <option value="">اختر الصلة أولاً</option>
+            {Object.entries(RELATION_LABELS)
+              .filter(([k]) => k !== 'head')
+              .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </Field>
+      </div>
 
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={data.hasChronicDisease}
-              onChange={e => onChange('hasChronicDisease', e.target.checked)} className="w-4 h-4 rounded" />
-            يعاني من مرض مزمن
-          </label>
+      {/* Show fields only after relation is selected */}
+      {data.relationToHead && (
+        <>
+          {isChild && selectedHead && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex flex-wrap gap-3">
+              <span>✅ تم تعبئة اسم الأب والجد والعائلة تلقائياً من بيانات رب الأسرة</span>
+            </div>
+          )}
 
-          {data.hasChronicDisease && (
-            <Field label="وصف المرض">
-              <input value={data.chronicDiseaseDescription ?? ''}
-                onChange={e => onChange('chronicDiseaseDescription', e.target.value)} className="input" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            <Field label="الاسم الأول" required>
+              <input required value={data.firstName}
+                onChange={e => onChange('firstName', e.target.value)} className="input" />
             </Field>
-          )}
 
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={data.hasDisability}
-              onChange={e => onChange('hasDisability', e.target.checked)} className="w-4 h-4 rounded" />
-            لديه إعاقة
-          </label>
-
-          {data.hasDisability && (
-            <Field label="نوع الإعاقة">
-              <input value={data.disabilityType ?? ''}
-                onChange={e => onChange('disabilityType', e.target.value)} className="input" />
+            <Field label="اسم الأب" required>
+              <input
+                required
+                value={data.fatherName}
+                onChange={e => onChange('fatherName', e.target.value)}
+                readOnly={isChild}
+                className={`input ${isChild ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
+              />
             </Field>
-          )}
 
-          {data.gender === 'female' && (
-            <>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={data.isPregnant}
-                  onChange={e => onChange('isPregnant', e.target.checked)} className="w-4 h-4 rounded" />
-                حامل
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={data.isBreastfeeding}
-                  onChange={e => onChange('isBreastfeeding', e.target.checked)} className="w-4 h-4 rounded" />
-                مرضع
-              </label>
-            </>
-          )}
-        </div>
+            <Field label="اسم الجد" required>
+              <input
+                required
+                value={data.grandfatherName}
+                onChange={e => onChange('grandfatherName', e.target.value)}
+                readOnly={isChild}
+                className={`input ${isChild ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
+              />
+            </Field>
+
+            <Field label="اسم العائلة" required>
+              <input
+                required
+                value={data.familyName}
+                onChange={e => onChange('familyName', e.target.value)}
+                readOnly={isChild}
+                className={`input ${isChild ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
+              />
+            </Field>
+
+            <Field label="رقم الهوية" required hint="9 خانات" error={errors.nationalId}>
+              <input
+                required
+                value={data.nationalId}
+                onChange={e => onChange('nationalId', e.target.value.replace(/\D/g, '').slice(0, 9))}
+                maxLength={9}
+                inputMode="numeric"
+                className={`input font-mono ${errors.nationalId ? 'border-red-400 bg-red-50' : ''}`}
+              />
+              <span className="text-xs text-slate-400">{data.nationalId.length}/9</span>
+            </Field>
+
+            <Field label="تاريخ الميلاد" required>
+              <input required type="date" value={data.dateOfBirth}
+                onChange={e => onChange('dateOfBirth', e.target.value)} className="input" />
+            </Field>
+
+            <Field label="الجنس" required>
+              <select required value={data.gender}
+                onChange={e => onChange('gender', e.target.value)} className="input">
+                <option value="">اختر</option>
+                {Object.entries(GENDER_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </Field>
+
+            <Field label="الحالة الاجتماعية" required>
+              <select required value={data.maritalStatus}
+                onChange={e => onChange('maritalStatus', e.target.value)} className="input">
+                <option value="">اختر</option>
+                {Object.entries(MARITAL_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </Field>
+
+          </div>
+
+          {/* Phone info note */}
+          <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 flex items-center gap-2">
+            <span>📞</span>
+            <span>سيتم حفظ رقم هاتف رب الأسرة تلقائياً: <strong className="text-slate-700">{selectedHead?.phoneNumber1}</strong></span>
+          </div>
+
+          <HealthSection data={data} onChange={onChange} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Health Section ───────────────────────────────────────────────────────────
+
+function HealthSection({ data, onChange }: { data: any; onChange: (f: string, v: any) => void }) {
+  return (
+    <div className="mt-4 pt-4 border-t">
+      <p className="text-sm font-medium text-slate-600 mb-3">الحالة الصحية</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={data.hasChronicDisease}
+            onChange={e => onChange('hasChronicDisease', e.target.checked)} className="w-4 h-4 rounded" />
+          يعاني من مرض مزمن
+        </label>
+
+        {data.hasChronicDisease && (
+          <Field label="وصف المرض">
+            <input value={data.chronicDiseaseDescription ?? ''}
+              onChange={e => onChange('chronicDiseaseDescription', e.target.value)} className="input" />
+          </Field>
+        )}
+
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={data.hasDisability}
+            onChange={e => onChange('hasDisability', e.target.checked)} className="w-4 h-4 rounded" />
+          لديه إعاقة
+        </label>
+
+        {data.hasDisability && (
+          <Field label="نوع الإعاقة">
+            <input value={data.disabilityType ?? ''}
+              onChange={e => onChange('disabilityType', e.target.value)} className="input" />
+          </Field>
+        )}
+
+        {data.gender === 'female' && (
+          <>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={data.isPregnant}
+                onChange={e => onChange('isPregnant', e.target.checked)} className="w-4 h-4 rounded" />
+              حامل
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={data.isBreastfeeding}
+                onChange={e => onChange('isBreastfeeding', e.target.checked)} className="w-4 h-4 rounded" />
+              مرضع
+            </label>
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+// ─── Field wrapper ────────────────────────────────────────────────────────────
 
 function Field({ label, required, hint, error, children }: {
   label: string;
@@ -601,3 +686,5 @@ function Field({ label, required, hint, error, children }: {
     </div>
   );
 }
+
+// Constant used in component (defined above)
