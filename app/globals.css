@@ -1,9 +1,7 @@
 @import "tailwindcss";
 
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,23 +9,12 @@
     color: #1e293b;
   }
 
-  input, select, textarea, button {
-    font-family: inherit;
-  }
+  input, select, textarea, button { font-family: inherit; }
+  html { scroll-behavior: smooth; }
+  :focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+  .overflow-x-auto { -webkit-overflow-scrolling: touch; }
 
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
-
-  /* Better focus ring */
-  :focus-visible {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-  }
-
-  /* Table scroll on mobile */
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
+  .input {
+    @apply w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500;
   }
 }
