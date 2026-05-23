@@ -6,10 +6,11 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PageHeader from '../../components/ui/PageHeader';
 import ReportModal from '../../components/ui/ReportModal';
 import FamiliesModal from '../../components/ui/FamiliesModal';
+import ResidentsModal from '../../components/ui/ResidentsModal';
 
 type ModalKey =
   | 'elderly' | 'chronic' | 'pregnant' | 'breastfeeding'
-  | 'childrenU2' | 'childrenU5' | 'noAid' | null;
+  | 'childrenU2' | 'childrenU5' | 'noAid' | 'disabled' | null;
 
 const REPORT_ENDPOINTS: Record<string, string> = {
   elderly: '/api/reports/elderly',
@@ -19,6 +20,8 @@ const REPORT_ENDPOINTS: Record<string, string> = {
   childrenU2: '/api/reports/children-under-2',
   childrenU5: '/api/reports/children-under-5',
   noAid: '/api/reports/no-aid?days=30',
+  disabled: '/api/reports/disabled',
+
 };
 
 const REPORT_TITLES: Record<string, string> = {
@@ -29,6 +32,8 @@ const REPORT_TITLES: Record<string, string> = {
   childrenU2: 'أطفال دون سنتين',
   childrenU5: 'أطفال دون 5 سنوات',
   noAid: 'أسر بدون مساعدة (30 يوم)',
+  disabled: 'ذوو الإعاقة',
+
 };
 
 interface StatCardProps {
@@ -60,11 +65,8 @@ function StatCard({ label, value, icon, color, onClick, clickable }: StatCardPro
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl border p-6 ${colorMap[color]} ${
-        clickable
-          ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all'
-          : ''
-      }`}
+      className={`rounded-xl border p-6 ${colorMap[color]} ${clickable ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all' : ''
+        }`}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -96,10 +98,15 @@ export default function DashboardPage() {
   const [familiesData, setFamiliesData] = useState<any[]>([]);
   const [familiesLoading, setFamiliesLoading] = useState(false);
 
+  // Residents modal
+  const [residentsOpen, setResidentsOpen] = useState(false);
+  const [residentsData, setResidentsData] = useState<any[]>([]);
+  const [residentsLoading, setResidentsLoading] = useState(false);
+
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [residents, heads, elderly, chronic, pregnant, breastfeeding, u2, u5, noAid] =
+        const [residents, heads, elderly, chronic, pregnant, breastfeeding, u2, u5, noAid, disabled] =
           await Promise.all([
             fetch('/api/residents?pageSize=1').then(r => r.json()),
             fetch('/api/residents?pageSize=1&headOnly=true').then(r => r.json()),
@@ -110,6 +117,7 @@ export default function DashboardPage() {
             fetch('/api/reports/children-under-2').then(r => r.json()),
             fetch('/api/reports/children-under-5').then(r => r.json()),
             fetch('/api/reports/no-aid?days=30').then(r => r.json()),
+            fetch('/api/reports/disabled').then(r => r.json()),
           ]);
 
         setStats({
@@ -122,6 +130,7 @@ export default function DashboardPage() {
           childrenU2: u2.total ?? 0,
           childrenU5: u5.total ?? 0,
           noAid: noAid.total ?? 0,
+          disabled: disabled.total ?? 0,
         });
       } catch (e) {
         console.error(e);
@@ -159,6 +168,19 @@ export default function DashboardPage() {
     }
   }
 
+  async function openResidents() {
+    setResidentsOpen(true);
+    setResidentsLoading(true);
+    setResidentsData([]);
+    try {
+      const res = await fetch('/api/residents?pageSize=10000&isActive=true');
+      const json = await res.json();
+      setResidentsData(json.data ?? []);
+    } finally {
+      setResidentsLoading(false);
+    }
+  }
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -169,6 +191,7 @@ export default function DashboardPage() {
         data={modalData}
         loading={modalLoading}
         onClose={() => { setActiveModal(null); setModalData([]); }}
+        showDisabilityType={activeModal === 'disabled'}
       />
 
       <FamiliesModal
@@ -176,6 +199,13 @@ export default function DashboardPage() {
         data={familiesData}
         loading={familiesLoading}
         onClose={() => { setFamiliesOpen(false); setFamiliesData([]); }}
+      />
+
+      <ResidentsModal
+        open={residentsOpen}
+        data={residentsData}
+        loading={residentsLoading}
+        onClose={() => { setResidentsOpen(false); setResidentsData([]); }}
       />
 
       <PageHeader title="لوحة التحكم" subtitle="نظرة عامة على أوضاع المخيم" />
@@ -187,6 +217,8 @@ export default function DashboardPage() {
           value={stats.totalResidents}
           icon="👥"
           color="blue"
+          clickable
+          onClick={openResidents}
         />
         <StatCard
           label="إجمالي الأسر"
@@ -214,6 +246,8 @@ export default function DashboardPage() {
           clickable onClick={() => openModal('childrenU5')} />
         <StatCard label="أسر بدون مساعدة (30 يوم)" value={stats.noAid} icon="⚠️" color="orange"
           clickable onClick={() => openModal('noAid')} />
+        <StatCard label="ذوو الإعاقة" value={stats.disabled} icon="♿" color="purple"
+          clickable onClick={() => openModal('disabled')} />
       </div>
 
       {/* Quick actions */}

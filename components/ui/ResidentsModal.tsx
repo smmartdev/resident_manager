@@ -1,55 +1,57 @@
 'use client';
 
 import * as XLSX from 'xlsx';
-import { GENDER_LABELS } from '../../lib/constants';
+import { GENDER_LABELS, RELATION_LABELS } from '../../lib/constants';
 
-interface ReportModalProps {
+interface ResidentsModalProps {
   open: boolean;
-  title: string;
   data: any[];
   loading: boolean;
   onClose: () => void;
-  showDisabilityType?: boolean;
 }
 
-export default function ReportModal({
-  open, title, data, loading, onClose, showDisabilityType = false,
-}: ReportModalProps) {
+export default function ResidentsModal({ open, data, loading, onClose }: ResidentsModalProps) {
   if (!open) return null;
 
   function exportToExcel() {
-    const rows = data.map(r => {
-      const row: Record<string, any> = {
-        'رقم الهوية': r.nationalId,
-        'الاسم الكامل': `${r.firstName} ${r.fatherName} ${r.grandfatherName} ${r.familyName}`,
-        'الجنس': GENDER_LABELS[r.gender] ?? r.gender,
-        'العمر': r.age,
-        'رقم الهاتف': r.phoneNumber1,
-        'رقم الخيمة': r.tentNumber ?? '—',
-        'رب الأسرة': r.headOfHousehold
-          ? `${r.headOfHousehold.firstName} ${r.headOfHousehold.familyName}`
-          : `${r.firstName} ${r.familyName}`,
-      };
-      if (showDisabilityType) {
-        row['نوع الإعاقة'] = r.disabilityType ?? '—';
-      }
-      return row;
-    });
+    const rows = data.map(r => ({
+      'رقم الهوية': r.nationalId,
+      'الاسم الكامل': `${r.firstName} ${r.fatherName} ${r.grandfatherName} ${r.familyName}`,
+      'الجنس': GENDER_LABELS[r.gender] ?? r.gender,
+      'تاريخ الميلاد': r.dateOfBirth ? new Date(r.dateOfBirth).toLocaleDateString('ar-EG') : '—',
+      'العمر': r.age,
+      'رقم الهاتف': r.phoneNumber1,
+      'رقم الخيمة': r.tentNumber ?? '—',
+      'الصلة': RELATION_LABELS[r.relationToHead] ?? r.relationToHead,
+      'رب الأسرة': r.headOfHousehold
+        ? `${r.headOfHousehold.firstName} ${r.headOfHousehold.familyName}`
+        : '—',
+    }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    ws['!cols'] = Array(8).fill({ wch: 22 });
-    XLSX.utils.book_append_sheet(wb, ws, title);
-    XLSX.writeFile(wb, `${title}.xlsx`);
+    ws['!cols'] = [
+      { wch: 15 },
+      { wch: 35 },
+      { wch: 8 },
+      { wch: 15 },
+      { wch: 8 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 25 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'كشف المقيمين');
+    XLSX.writeFile(wb, 'كشف_المقيمين.xlsx');
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[85vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+          <h2 className="text-lg font-bold text-slate-800">👥 كشف المقيمين</h2>
           <div className="flex items-center gap-2">
             {data.length > 0 && (
               <button
@@ -90,12 +92,10 @@ export default function ReportModal({
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">الاسم الكامل</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">الجنس</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">العمر</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600">رقم الهاتف</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600">الهاتف</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">الخيمة</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600">الصلة</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">رب الأسرة</th>
-                  {showDisabilityType && (
-                    <th className="text-right px-4 py-3 font-semibold text-slate-600">نوع الإعاقة</th>
-                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -111,13 +111,13 @@ export default function ReportModal({
                     <td className="px-4 py-3 font-mono text-slate-600">{r.phoneNumber1}</td>
                     <td className="px-4 py-3 text-slate-600">{r.tentNumber ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-600">
+                      {RELATION_LABELS[r.relationToHead] ?? r.relationToHead}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
                       {r.headOfHousehold
                         ? `${r.headOfHousehold.firstName} ${r.headOfHousehold.familyName}`
-                        : `${r.firstName} ${r.familyName}`}
+                        : '—'}
                     </td>
-                    {showDisabilityType && (
-                      <td className="px-4 py-3 text-slate-600">{r.disabilityType ?? '—'}</td>
-                    )}
                   </tr>
                 ))}
               </tbody>
@@ -128,7 +128,7 @@ export default function ReportModal({
         {/* Footer */}
         {data.length > 0 && (
           <div className="px-6 py-3 border-t border-slate-200 text-sm text-slate-500">
-            الإجمالي: {data.length}
+            إجمالي المقيمين: {data.length}
           </div>
         )}
       </div>
