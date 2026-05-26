@@ -8,6 +8,8 @@ import EmptyState from '../../../components/ui/EmptyState';
 import Pagination from '../../../components/ui/Pagination';
 import ResidentBadges from '../../../components/ui/ResidentBadges';
 import Badge from '../../../components/ui/Badge';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
+import AlertMessage from '../../../components/ui/AlertMessage';
 import { GENDER_LABELS, RELATION_LABELS } from '../../../lib/constants';
 
 export default function ResidentsPage() {
@@ -20,6 +22,11 @@ export default function ResidentsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [headOnly, setHeadOnly] = useState(false);
   const [gender, setGender] = useState('');
+
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [confirmName, setConfirmName] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteSuccess, setDeleteSuccess] = useState('');
 
   const fetchResidents = useCallback(async () => {
     setLoading(true);
@@ -49,8 +56,40 @@ export default function ResidentsPage() {
     setPage(1);
   }
 
+  function openConfirm(r: any) {
+    setConfirmId(r.id);
+    setConfirmName(`${r.firstName} ${r.fatherName} ${r.familyName}`);
+    setDeleteError('');
+  }
+
+  async function handleDelete() {
+    if (!confirmId) return;
+    setConfirmId(null);
+
+    const res = await fetch(`/api/residents/${confirmId}`, { method: 'DELETE' });
+    const json = await res.json();
+
+    if (!res.ok) {
+      setDeleteError(json.error || 'فشل في حذف المقيم');
+    } else {
+      setDeleteSuccess('تم حذف المقيم بنجاح');
+      fetchResidents();
+      setTimeout(() => setDeleteSuccess(''), 3000);
+    }
+  }
+
   return (
     <div>
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="حذف المقيم"
+        message={`هل تريد حذف "${confirmName}" نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`}
+        confirmLabel="حذف"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmId(null)}
+      />
+
       <PageHeader
         title="المقيمون"
         subtitle={`إجمالي: ${total} مقيم`}
@@ -61,6 +100,13 @@ export default function ResidentsPage() {
           </Link>
         }
       />
+
+      {deleteError && (
+        <AlertMessage type="error" message={deleteError} onClose={() => setDeleteError('')} />
+      )}
+      {deleteSuccess && (
+        <AlertMessage type="success" message={deleteSuccess} onClose={() => setDeleteSuccess('')} />
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
@@ -75,36 +121,24 @@ export default function ResidentsPage() {
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">الجنس</label>
-            <select
-              value={gender}
-              onChange={e => { setGender(e.target.value); setPage(1); }}
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
+            <select value={gender} onChange={e => { setGender(e.target.value); setPage(1); }}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">الكل</option>
               <option value="male">ذكر</option>
               <option value="female">أنثى</option>
             </select>
           </div>
-
           <div className="flex items-center gap-2 pb-2">
-            <input
-              type="checkbox"
-              id="headOnly"
-              checked={headOnly}
-              onChange={e => { setHeadOnly(e.target.checked); setPage(1); }}
-              className="w-4 h-4 rounded"
-            />
+            <input type="checkbox" id="headOnly" checked={headOnly}
+              onChange={e => { setHeadOnly(e.target.checked); setPage(1); }} className="w-4 h-4 rounded" />
             <label htmlFor="headOnly" className="text-sm font-medium text-slate-700">أرباب الأسر فقط</label>
           </div>
-
           <button type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
             بحث
           </button>
-
           <button type="button"
             onClick={() => { setSearch(''); setSearchInput(''); setGender(''); setHeadOnly(false); setPage(1); }}
             className="border border-slate-300 hover:bg-slate-50 px-5 py-2 rounded-lg text-sm font-medium transition-colors">
@@ -159,7 +193,7 @@ export default function ResidentsPage() {
                       <Badge label={r.isActive ? 'نشط' : 'غير نشط'} color={r.isActive ? 'green' : 'gray'} />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <Link href={`/residents/${r.id}`}
                           className="text-blue-600 hover:text-blue-800 font-medium text-xs px-2 py-1 rounded hover:bg-blue-50 transition-colors">
                           عرض
@@ -168,6 +202,12 @@ export default function ResidentsPage() {
                           className="text-slate-600 hover:text-slate-800 font-medium text-xs px-2 py-1 rounded hover:bg-slate-100 transition-colors">
                           تعديل
                         </Link>
+                        <button
+                          onClick={() => openConfirm(r)}
+                          className="text-red-500 hover:text-red-700 font-medium text-xs px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                        >
+                          حذف
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -162,36 +162,34 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const ds = await getDataSource();
 
-    const existing = (await ds.query(
-      'SELECT id FROM residents WHERE id = ?',
-      [id]
-    )) as any[];
+    const existing = await ds.query(
+      'SELECT id, relationToHead FROM residents WHERE id = ?', [id]
+    ) as any[];
+    if (!existing.length) return errorResponse('المقيم غير موجود', 404);
 
-    if (existing.length === 0) {
-      return errorResponse('المقيم غير موجود', 404);
+    const resident = existing[0];
+
+    // If head, check for active family members
+    if (resident.relationToHead === 'head') {
+      const members = await ds.query(
+        'SELECT id FROM residents WHERE headOfHouseholdId = ? AND isActive = 1', [id]
+      ) as any[];
+      if (members.length > 0) {
+        return errorResponse(
+          `لا يمكن حذف رب الأسرة لأن لديه ${members.length} فرد مسجل. يرجى حذف أفراد الأسرة أولاً.`,
+          409
+        );
+      }
     }
 
-    await ds.query(
-      'UPDATE residents SET isActive = 0 WHERE id = ?',
-      [id]
-    );
-
-    return successResponse({
-      message: 'تم حذف المقيم بنجاح',
-    });
+    await ds.query('DELETE FROM residents WHERE id = ?', [id]);
+    return successResponse({ message: 'تم حذف المقيم بنجاح' });
   } catch (error) {
-    return errorResponse(
-      'فشل في حذف المقيم',
-      500,
-      String(error)
-    );
+    return errorResponse('فشل في حذف المقيم', 500, String(error));
   }
 }

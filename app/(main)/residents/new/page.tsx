@@ -100,10 +100,17 @@ export default function NewResidentPage() {
   function applyAutoFill(member: any, relation: string, head: any) {
     const updated = { ...member, relationToHead: relation };
     if (CHILD_RELATIONS.includes(relation) && head) {
-      // Son/Daughter: fatherName = head.firstName, grandfatherName = head.fatherName, familyName = head.familyName
       updated.fatherName = head.firstName;
       updated.grandfatherName = head.fatherName;
       updated.familyName = head.familyName;
+    }
+    if (relation === 'son') {
+      updated.gender = 'male';
+      updated.maritalStatus = 'single';
+    }
+    if (relation === 'daughter') {
+      updated.gender = 'female';
+      updated.maritalStatus = 'single';
     }
     return updated;
   }
@@ -539,8 +546,7 @@ function MemberForm({ index, data, onChange, errors, onRemove, selectedHead }: {
                 required
                 value={data.fatherName}
                 onChange={e => onChange('fatherName', e.target.value)}
-                readOnly={isChild}
-                className={`input ${isChild ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
+                className="input"
               />
             </Field>
 
@@ -549,8 +555,7 @@ function MemberForm({ index, data, onChange, errors, onRemove, selectedHead }: {
                 required
                 value={data.grandfatherName}
                 onChange={e => onChange('grandfatherName', e.target.value)}
-                readOnly={isChild}
-                className={`input ${isChild ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
+                className="input"
               />
             </Field>
 
@@ -559,8 +564,7 @@ function MemberForm({ index, data, onChange, errors, onRemove, selectedHead }: {
                 required
                 value={data.familyName}
                 onChange={e => onChange('familyName', e.target.value)}
-                readOnly={isChild}
-                className={`input ${isChild ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
+                className="input"
               />
             </Field>
 

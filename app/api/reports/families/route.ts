@@ -15,12 +15,14 @@ export async function GET(req: NextRequest) {
        ORDER BY r.familyName ASC`
     ) as any[];
 
-    // For each head, get family members to build notes
     const data = await Promise.all(heads.map(async (head: any) => {
       const members = await ds.query(
         `SELECT * FROM residents WHERE headOfHouseholdId = ? AND isActive = 1`,
         [head.id]
       ) as any[];
+
+      // Get spouse
+      const spouse = members.find((m: any) => m.relationToHead === 'spouse');
 
       const all = [head, ...members];
       const notes: string[] = [];
@@ -48,7 +50,11 @@ export async function GET(req: NextRequest) {
         phoneNumber1: head.phoneNumber1,
         phoneNumber2: head.phoneNumber2,
         tentNumber: head.tentNumber,
-        familySize: parseInt(head.memberCount) + 1, // include head
+        familySize: parseInt(head.memberCount) + 1,
+        spouseName: spouse
+          ? `${spouse.firstName} ${spouse.fatherName} ${spouse.familyName}`
+          : null,
+        spouseNationalId: spouse?.nationalId ?? null,
         notes: notes.join(' | '),
       };
     }));

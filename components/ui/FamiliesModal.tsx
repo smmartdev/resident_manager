@@ -16,6 +16,8 @@ export default function FamiliesModal({ open, data, loading, onClose }: Families
     const rows = data.map(r => ({
       'رقم الهوية': r.nationalId,
       'اسم رب الأسرة': `${r.firstName} ${r.fatherName} ${r.grandfatherName} ${r.familyName}`,
+      'اسم الزوجة': r.spouseName ?? '—',
+      'رقم هوية الزوجة': r.spouseNationalId ?? '—',
       'رقم الهاتف': r.phoneNumber1,
       'رقم الخيمة': r.tentNumber ?? '—',
       'عدد أفراد الأسرة': r.familySize,
@@ -27,6 +29,8 @@ export default function FamiliesModal({ open, data, loading, onClose }: Families
     ws['!cols'] = [
       { wch: 15 },
       { wch: 35 },
+      { wch: 30 },
+      { wch: 15 },
       { wch: 15 },
       { wch: 12 },
       { wch: 12 },
@@ -38,7 +42,7 @@ export default function FamiliesModal({ open, data, loading, onClose }: Families
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[85vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
@@ -81,6 +85,8 @@ export default function FamiliesModal({ open, data, loading, onClose }: Families
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">#</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">رقم الهوية</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">اسم رب الأسرة</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600">اسم الزوجة</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600">هوية الزوجة</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">الهاتف</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">الخيمة</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">عدد الأفراد</th>
@@ -94,6 +100,12 @@ export default function FamiliesModal({ open, data, loading, onClose }: Families
                     <td className="px-4 py-3 font-mono text-slate-600">{r.nationalId}</td>
                     <td className="px-4 py-3 font-medium text-slate-800">
                       {r.firstName} {r.fatherName} {r.grandfatherName} {r.familyName}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {r.spouseName ?? <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-600">
+                      {r.spouseNationalId ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-600">{r.phoneNumber1}</td>
                     <td className="px-4 py-3 text-slate-600">{r.tentNumber ?? '—'}</td>
