@@ -12,6 +12,7 @@ const navItems = [
   { href: '/aid', label: 'المساعدات', icon: '🤝' },
   { href: '/aid/new', label: 'تسجيل مساعدة', icon: '📋' },
   { href: '/reports', label: 'التقارير', icon: '📊' },
+  { href: '/backup', label: 'النسخ الاحتياطي', icon: '💾' },
 ];
 
 export default function Sidebar() {
