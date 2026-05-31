@@ -650,6 +650,12 @@ function HealthSection({ data, onChange }: { data: any; onChange: (f: string, v:
           </Field>
         )}
 
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={data.isMartyr ?? false}
+            onChange={e => onChange('isMartyr', e.target.checked)} className="w-4 h-4 rounded accent-red-600" />
+          <span className="text-red-700 font-medium">شهيد</span>
+        </label>
+
         {data.gender === 'female' && (
           <>
             <label className="flex items-center gap-2 text-sm cursor-pointer">

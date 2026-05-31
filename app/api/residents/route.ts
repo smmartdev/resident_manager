@@ -68,18 +68,15 @@ export async function GET(req: NextRequest) {
         ? conditions.join(' AND ')
         : undefined;
 
-    const [data, total] = await Promise.all([
-      findResidents(ds, {
-        where,
-        params,
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-      }),
+    // Exclude martyrs from count unless explicitly searching
+    const martyrCondition = 'r.isMartyr = 0';
+    const whereWithMartyr = where
+      ? `${where} AND ${martyrCondition}`
+      : martyrCondition;
 
-      countResidents(ds, {
-        where,
-        params,
-      }),
+    const [data, total] = await Promise.all([
+      findResidents(ds, { where: whereWithMartyr, params, limit: pageSize, offset: (page - 1) * pageSize }),
+      countResidents(ds, { where: whereWithMartyr, params }),
     ]);
 
     return successResponse({
@@ -173,52 +170,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const result = (await ds.query(
+    const result = await ds.query(
       `INSERT INTO residents (
-        nationalId,
-        firstName,
-        fatherName,
-        grandfatherName,
-        familyName,
-        gender,
-        dateOfBirth,
-        maritalStatus,
-        phoneNumber1,
-        phoneNumber2,
-        relationToHead,
-        headOfHouseholdId,
-        tentNumber,
-        hasChronicDisease,
-        chronicDiseaseDescription,
-        hasDisability,
-        disabilityType,
-        isPregnant,
-        isBreastfeeding,
-        isActive
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        nationalId, firstName, fatherName, grandfatherName, familyName, gender, dateOfBirth, maritalStatus, phoneNumber1, phoneNumber2, relationToHead, headOfHouseholdId, tentNumber, hasChronicDisease, chronicDiseaseDescription, hasDisability, disabilityType, isPregnant, isBreastfeeding, isMartyr, isActive)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
-        body.nationalId,
-        body.firstName,
-        body.fatherName,
-        body.grandfatherName,
-        body.familyName,
-        body.gender,
-        body.dateOfBirth,
-        body.maritalStatus,
-        body.phoneNumber1,
-        body.phoneNumber2 || null,
-        body.relationToHead,
-        body.headOfHouseholdId || null,
-        body.tentNumber || null,
-        body.hasChronicDisease ? 1 : 0,
-        body.chronicDiseaseDescription || null,
-        body.hasDisability ? 1 : 0,
-        body.disabilityType || null,
-        body.isPregnant ? 1 : 0,
-        body.isBreastfeeding ? 1 : 0,
+        body.nationalId, body.firstName, body.fatherName, body.grandfatherName,
+        body.familyName, body.gender, body.dateOfBirth, body.maritalStatus,
+        body.phoneNumber1, body.phoneNumber2 || null, body.relationToHead,
+        body.headOfHouseholdId || null, body.tentNumber || null,
+        body.hasChronicDisease ? 1 : 0, body.chronicDiseaseDescription || null,
+        body.hasDisability ? 1 : 0, body.disabilityType || null,
+        body.isPregnant ? 1 : 0, body.isBreastfeeding ? 1 : 0,
+        body.isMartyr ? 1 : 0,
       ]
-    )) as any;
+    ) as any;
 
     const saved = (await ds.query(
       'SELECT * FROM residents WHERE id = ?',

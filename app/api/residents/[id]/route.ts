@@ -104,13 +104,11 @@ export async function PUT(
     const current = existing[0];
 
     await ds.query(
-      `UPDATE residents
-       SET nationalId=?, firstName=?, fatherName=?, grandfatherName=?, familyName=?,
-           gender=?, dateOfBirth=?, maritalStatus=?, phoneNumber1=?, phoneNumber2=?,
-           relationToHead=?, headOfHouseholdId=?, tentNumber=?, hasChronicDisease=?,
-           chronicDiseaseDescription=?, hasDisability=?, disabilityType=?,
-           isPregnant=?, isBreastfeeding=?, isActive=?
-       WHERE id=?`,
+      `UPDATE residents SET nationalId=?, firstName=?, fatherName=?, grandfatherName=?, familyName=?,
+       gender=?, dateOfBirth=?, maritalStatus=?, phoneNumber1=?, phoneNumber2=?,
+       relationToHead=?, headOfHouseholdId=?, tentNumber=?, hasChronicDisease=?,
+       chronicDiseaseDescription=?, hasDisability=?, disabilityType=?,
+       isPregnant=?, isBreastfeeding=?, isMartyr=?, isActive=? WHERE id=?`,
       [
         body.nationalId ?? current.nationalId,
         body.firstName ?? current.firstName,
@@ -129,20 +127,15 @@ export async function PUT(
           ? body.hasChronicDisease ? 1 : 0
           : current.hasChronicDisease,
         body.chronicDiseaseDescription ??
-          current.chronicDiseaseDescription,
+        current.chronicDiseaseDescription,
         body.hasDisability !== undefined
           ? body.hasDisability ? 1 : 0
           : current.hasDisability,
         body.disabilityType ?? current.disabilityType,
-        body.isPregnant !== undefined
-          ? body.isPregnant ? 1 : 0
-          : current.isPregnant,
-        body.isBreastfeeding !== undefined
-          ? body.isBreastfeeding ? 1 : 0
-          : current.isBreastfeeding,
-        body.isActive !== undefined
-          ? body.isActive ? 1 : 0
-          : current.isActive,
+        body.isPregnant !== undefined ? (body.isPregnant ? 1 : 0) : current.isPregnant,
+        body.isBreastfeeding !== undefined ? (body.isBreastfeeding ? 1 : 0) : current.isBreastfeeding,
+        body.isMartyr !== undefined ? (body.isMartyr ? 1 : 0) : current.isMartyr,
+        body.isActive !== undefined ? (body.isActive ? 1 : 0) : current.isActive,
         id,
       ]
     );

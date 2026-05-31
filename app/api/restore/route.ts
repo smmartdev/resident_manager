@@ -31,16 +31,19 @@ export async function POST(req: NextRequest) {
           id, nationalId, firstName, fatherName, grandfatherName, familyName,
           gender, dateOfBirth, maritalStatus, phoneNumber1, phoneNumber2,
           hasChronicDisease, chronicDiseaseDescription, hasDisability, disabilityType,
-          isPregnant, isBreastfeeding, tentNumber, headOfHouseholdId,
+          isPregnant, isBreastfeeding, isMartyr, tentNumber, headOfHouseholdId,
           relationToHead, isActive, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           r.id, r.nationalId, r.firstName, r.fatherName, r.grandfatherName,
-          r.familyName, r.gender, String(r.dateOfBirth).split('T')[0], r.maritalStatus,
+          r.familyName, r.gender,
+          String(r.dateOfBirth).split('T')[0],
+          r.maritalStatus,
           r.phoneNumber1, r.phoneNumber2 ?? null,
           r.hasChronicDisease ? 1 : 0, r.chronicDiseaseDescription ?? null,
           r.hasDisability ? 1 : 0, r.disabilityType ?? null,
           r.isPregnant ? 1 : 0, r.isBreastfeeding ? 1 : 0,
+          r.isMartyr ? 1 : 0,
           r.tentNumber ?? null, r.headOfHouseholdId ?? null,
           r.relationToHead, r.isActive ? 1 : 0,
           String(r.createdAt).replace('T', ' ').replace('Z', '').split('.')[0],
@@ -80,7 +83,7 @@ export async function POST(req: NextRequest) {
     try {
       const ds = await getDataSource();
       await ds.query('SET FOREIGN_KEY_CHECKS = 1');
-    } catch (_) {}
+    } catch (_) { }
 
     return NextResponse.json(
       { error: 'فشل في استرجاع النسخة الاحتياطية', detail: String(error) },

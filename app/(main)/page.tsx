@@ -7,10 +7,11 @@ import PageHeader from '../../components/ui/PageHeader';
 import ReportModal from '../../components/ui/ReportModal';
 import FamiliesModal from '../../components/ui/FamiliesModal';
 import ResidentsModal from '../../components/ui/ResidentsModal';
+import WidowsModal from '../../components/ui/WidowsModal';
 
 type ModalKey =
   | 'elderly' | 'chronic' | 'pregnant' | 'breastfeeding'
-  | 'childrenU2' | 'childrenU5' | 'noAid' | 'disabled' | 'minors' | null;
+  | 'childrenU2' | 'childrenU5' | 'noAid' | 'disabled' | 'minors' | 'martyrs' | null;
 
 const REPORT_ENDPOINTS: Record<string, string> = {
   elderly: '/api/reports/elderly',
@@ -20,8 +21,10 @@ const REPORT_ENDPOINTS: Record<string, string> = {
   childrenU2: '/api/reports/children-under-2',
   childrenU5: '/api/reports/children-under-5',
   noAid: '/api/reports/no-aid?days=30',
-   disabled: '/api/reports/disabled',
+  disabled: '/api/reports/disabled',
   minors: '/api/reports/minors',
+  martyrs: '/api/reports/martyrs',
+
 
 };
 
@@ -35,6 +38,8 @@ const REPORT_TITLES: Record<string, string> = {
   noAid: 'أسر بدون مساعدة (30 يوم)',
   disabled: 'ذوو الإعاقة',
   minors: 'القاصرون (18 سنة وأقل)',
+  martyrs: 'الشهداء',
+
 
 };
 
@@ -100,6 +105,10 @@ export default function DashboardPage() {
   const [familiesData, setFamiliesData] = useState<any[]>([]);
   const [familiesLoading, setFamiliesLoading] = useState(false);
 
+  const [widowsOpen, setWidowsOpen] = useState(false);
+  const [widowsData, setWidowsData] = useState<any[]>([]);
+  const [widowsLoading, setWidowsLoading] = useState(false);
+
   // Residents modal
   const [residentsOpen, setResidentsOpen] = useState(false);
   const [residentsData, setResidentsData] = useState<any[]>([]);
@@ -108,7 +117,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [residents, heads, elderly, chronic, pregnant, breastfeeding, u2, u5, noAid, disabled, minors] =
+        const [residents, heads, elderly, chronic, pregnant, breastfeeding, u2, u5, noAid, disabled, minors, martyrs, widows] =
           await Promise.all([
             fetch('/api/residents?pageSize=1').then(r => r.json()),
             fetch('/api/residents?pageSize=1&headOnly=true').then(r => r.json()),
@@ -121,6 +130,10 @@ export default function DashboardPage() {
             fetch('/api/reports/no-aid?days=30').then(r => r.json()),
             fetch('/api/reports/disabled').then(r => r.json()),
             fetch('/api/reports/minors').then(r => r.json()),
+            fetch('/api/reports/martyrs').then(r => r.json()),
+            fetch('/api/reports/widows').then(r => r.json()),
+
+
           ]);
 
         setStats({
@@ -135,6 +148,11 @@ export default function DashboardPage() {
           noAid: noAid.total ?? 0,
           disabled: disabled.total ?? 0,
           minors: minors.total ?? 0,
+          martyrs: martyrs.total ?? 0,
+          widows: widows.total ?? 0,
+
+
+
         });
       } catch (e) {
         console.error(e);
@@ -172,6 +190,21 @@ export default function DashboardPage() {
     }
   }
 
+  async function openWidows() {
+    setWidowsOpen(true);
+    setWidowsLoading(true);
+    setWidowsData([]);
+    try {
+      const res = await fetch('/api/reports/widows');
+      const json = await res.json();
+      setWidowsData(json.data ?? []);
+    } finally {
+      setWidowsLoading(false);
+    }
+  }
+
+
+
   async function openResidents() {
     setResidentsOpen(true);
     setResidentsLoading(true);
@@ -196,6 +229,7 @@ export default function DashboardPage() {
         loading={modalLoading}
         onClose={() => { setActiveModal(null); setModalData([]); }}
         showDisabilityType={activeModal === 'disabled'}
+        showMartyrInfo={activeModal === 'martyrs'}
       />
 
       <FamiliesModal
@@ -210,6 +244,13 @@ export default function DashboardPage() {
         data={residentsData}
         loading={residentsLoading}
         onClose={() => { setResidentsOpen(false); setResidentsData([]); }}
+      />
+
+      <WidowsModal
+        open={widowsOpen}
+        data={widowsData}
+        loading={widowsLoading}
+        onClose={() => { setWidowsOpen(false); setWidowsData([]); }}
       />
 
       <PageHeader title="لوحة التحكم" subtitle="نظرة عامة على أوضاع المخيم" />
@@ -254,6 +295,10 @@ export default function DashboardPage() {
           clickable onClick={() => openModal('disabled')} />
         <StatCard label="القاصرون (18 وأقل)" value={stats.minors} icon="🧑" color="blue"
           clickable onClick={() => openModal('minors')} />
+        <StatCard label="الشهداء" value={stats.martyrs} icon="🕊️" color="red"
+          clickable onClick={() => openModal('martyrs')} />
+        <StatCard label="الأرامل" value={stats.widows} icon="🤍" color="purple"
+          clickable onClick={openWidows} />
       </div>
 
       {/* Quick actions */}

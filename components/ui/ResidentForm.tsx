@@ -497,6 +497,19 @@ export default function ResidentForm({ initialData, onSubmit, submitLabel }: Res
                 </div>
               )}
 
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="isMartyr"
+                  checked={form.isMartyr ?? false}
+                  onChange={e => set('isMartyr', e.target.checked)}
+                  className="w-4 h-4 rounded accent-red-600"
+                />
+                <label htmlFor="isMartyr" className="text-sm font-medium text-red-700">
+                  شهيد
+                </label>
+              </div>
+
               {form.gender === 'female' && (
                 <>
                   <div className="flex items-center gap-3">
