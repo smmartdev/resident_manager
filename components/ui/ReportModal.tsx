@@ -13,11 +13,13 @@ interface ReportModalProps {
   showDisabilityType?: boolean;
   showMartyrInfo?: boolean;
   showDateOfBirth?: boolean;
+  showHeadNationalId?: boolean;
 }
 
 export default function ReportModal({
   open, title, data, loading, onClose,
-  showDisabilityType = false, showMartyrInfo = false, showDateOfBirth = false,
+  showDisabilityType = false, showMartyrInfo = false,
+  showDateOfBirth = false, showHeadNationalId = false,
 }: ReportModalProps) {
   if (!open) return null;
 
@@ -40,6 +42,9 @@ export default function ReportModal({
         row['تاريخ الميلاد'] = r.dateOfBirth
           ? new Date(r.dateOfBirth).toLocaleDateString('ar-EG')
           : '—';
+      }
+     if (showHeadNationalId) {
+        row['رقم هوية رب الأسرة'] = r.headOfHousehold?.nationalId ?? '—';
       }
       if (showDisabilityType) {
         row['نوع الإعاقة'] = r.disabilityType ?? '—';
@@ -107,6 +112,9 @@ export default function ReportModal({
                     <th className="text-right px-4 py-3 font-semibold text-slate-600">تاريخ الميلاد</th>
                   )}
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">رب الأسرة</th>
+                  {showHeadNationalId && (
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600">هوية رب الأسرة</th>
+                  )}
                   {showDisabilityType && (
                     <th className="text-right px-4 py-3 font-semibold text-slate-600">نوع الإعاقة</th>
                   )}
@@ -141,6 +149,11 @@ export default function ReportModal({
                           ? `${r.headOfHousehold.firstName} ${r.headOfHousehold.familyName}`
                           : `${r.firstName} ${r.familyName}`}
                     </td>
+                    {showHeadNationalId && (
+                      <td className="px-4 py-3 font-mono text-slate-600">
+                        {r.headOfHousehold?.nationalId ?? '—'}
+                      </td>
+                    )}
                     {showDisabilityType && (
                       <td className="px-4 py-3 text-slate-600">{r.disabilityType ?? '—'}</td>
                     )}
