@@ -228,6 +228,7 @@ export default function DashboardPage() {
         data={modalData}
         loading={modalLoading}
         onClose={() => { setActiveModal(null); setModalData([]); }}
+        showDateOfBirth={activeModal === 'childrenU2' || activeModal === 'childrenU5'}
         showDisabilityType={activeModal === 'disabled'}
         showMartyrInfo={activeModal === 'martyrs'}
       />

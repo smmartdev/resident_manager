@@ -47,13 +47,27 @@ export async function getChildrenUnder(ds: any, years: 2 | 5) {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - years);
   const rows = await ds.query(
-    `SELECT r.*, h.tentNumber as h_tentNumber FROM residents r
+    `SELECT r.*, h.tentNumber as h_tentNumber,
+      h.id as h_id, h.firstName as h_firstName, h.fatherName as h_fatherName,
+      h.familyName as h_familyName, h.nationalId as h_nationalId,
+      h.phoneNumber1 as h_phoneNumber1
+     FROM residents r
      LEFT JOIN residents h ON h.id = r.headOfHouseholdId
      WHERE r.isActive = 1 AND r.dateOfBirth > ?
      ORDER BY r.dateOfBirth DESC`,
     [cutoff]
   ) as any[];
-  return rows.map(mapResident);
+  return rows.map((r: any) => ({
+    ...mapResident(r),
+    headOfHousehold: r.h_id ? {
+      id: r.h_id,
+      firstName: r.h_firstName,
+      fatherName: r.h_fatherName,
+      familyName: r.h_familyName,
+      nationalId: r.h_nationalId,
+      phoneNumber1: r.h_phoneNumber1,
+    } : null,
+  }));
 }
 
 export async function getHouseholdsWithNoAid(ds: any, days: number) {

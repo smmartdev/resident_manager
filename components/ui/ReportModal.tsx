@@ -12,10 +12,12 @@ interface ReportModalProps {
   onClose: () => void;
   showDisabilityType?: boolean;
   showMartyrInfo?: boolean;
+  showDateOfBirth?: boolean;
 }
 
 export default function ReportModal({
-  open, title, data, loading, onClose, showDisabilityType = false, showMartyrInfo = false,
+  open, title, data, loading, onClose,
+  showDisabilityType = false, showMartyrInfo = false, showDateOfBirth = false,
 }: ReportModalProps) {
   if (!open) return null;
 
@@ -34,6 +36,11 @@ export default function ReportModal({
             ? `${r.headOfHousehold.firstName} ${r.headOfHousehold.familyName}`
             : `${r.firstName} ${r.familyName}`,
       };
+      if (showDateOfBirth) {
+        row['تاريخ الميلاد'] = r.dateOfBirth
+          ? new Date(r.dateOfBirth).toLocaleDateString('ar-EG')
+          : '—';
+      }
       if (showDisabilityType) {
         row['نوع الإعاقة'] = r.disabilityType ?? '—';
       }
@@ -96,6 +103,9 @@ export default function ReportModal({
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">العمر</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">رقم الهاتف</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">الخيمة</th>
+                  {showDateOfBirth && (
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600">تاريخ الميلاد</th>
+                  )}
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">رب الأسرة</th>
                   {showDisabilityType && (
                     <th className="text-right px-4 py-3 font-semibold text-slate-600">نوع الإعاقة</th>
@@ -117,6 +127,13 @@ export default function ReportModal({
                     <td className="px-4 py-3 text-slate-600">{r.age}</td>
                     <td className="px-4 py-3 font-mono text-slate-600">{r.phoneNumber1}</td>
                     <td className="px-4 py-3 text-slate-600">{r.tentNumber ?? '—'}</td>
+                    {showDateOfBirth && (
+                      <td className="px-4 py-3 text-slate-600">
+                        {r.dateOfBirth
+                          ? new Date(r.dateOfBirth).toLocaleDateString('ar-EG')
+                          : '—'}
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-slate-600">
                       {r.headName && r.headName !== '—'
                         ? r.headName
